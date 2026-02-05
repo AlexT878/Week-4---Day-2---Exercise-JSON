@@ -15,6 +15,51 @@ export type Result<T> =
   | { ok: true; value: T }
   | { ok: false; error: string };
 
+function validateUser(data: unknown): Result<User> {
+    if (typeof data !== "object" || data === null) {
+        return { ok: false, error: "Invalid User shape (expected object)" };
+    }
+    const validRoles = ["intern", "mentor", "admin"];
+    const obj = data as { id?: unknown; email?: unknown; role?: unknown };
+    console.log(obj);
+
+    if (obj.id === undefined) {
+        return { ok: false, error: "Missing field: id" };
+    }
+    if (typeof obj.id !== "string") {
+        return { ok: false, error: "Invalid type for id (expected string)" };
+    }
+    if (!obj.id.startsWith('u')) {
+        return { ok: false, error: "Invalid id (must start with 'u')" };
+    }
+
+    if (obj.email === undefined) {
+        return { ok: false, error: "Missing field: email" };
+    }
+    if (typeof obj.email !== "string") {
+        return { ok: false, error: "Invalid type for email (expected string)" };
+    }
+    if (!obj.email.includes('@')) {
+        return { ok: false, error: "Invalid email (doesn't contain @)" };
+    }
+
+    if (obj.role === undefined) {
+        return { ok: false, error: "Missing field: role" };
+    }
+    if (typeof obj.role !== "string" || !validRoles.includes(obj.role)) {
+        return { ok: false, error: "Invalid role (expected intern|mentor|admin)" };
+    }
+
+    return {
+        ok: true,
+        value: {
+            id: obj.id,
+            email: obj.email,
+            role: obj.role as Role,
+        },
+    };
+    
+}
 
 // [1] Implement
 export function parseUserConfig(input: string): Result<User>  {
@@ -28,24 +73,19 @@ export function parseUserConfig(input: string): Result<User>  {
     // Don’t use as User / as any to force the type
     // The result must be correct based on runtime checks
 
-    const validRoles: Role[] = ["intern", "mentor", "admin"];
-
     try {
-        const data = JSON.parse(input);
-        console.log(`User data: ${JSON.stringify(data)}`);
-        if(typeof data.id === "string" && data.id.startsWith('u') && typeof data.email === "string" && validRoles.includes(data.role)) {
-            const user: User = {
-                id: data.id,
-                email: data.email,
-                role: data.role
-            };
-            return {ok: true, value: user};
-        } else {
-            return {ok: false, error: "Invalid User shape"};
+        const data: unknown = JSON.parse(input);
+        
+        const validation = validateUser(data);
+
+        if (!validation.ok) {
+             return { ok: false, error: "Invalid User shape" };
         }
 
-    } catch(e) {
-        return {ok : false, error: "Invalid JSON"};
+        return validation;
+
+    } catch (e) {
+        return { ok: false, error: "Invalid JSON" };
     }
 }
 
@@ -75,52 +115,28 @@ export function parseUsersConfig(input: string): Result<User[]> {
 // What to submit:
 // * exercise.ts with your implementations
 // * A short console.log demo that shows outputs for the sample inputs
-    const validRoles: Role[] = ["intern", "mentor", "admin"];
-
     try {
-        const data = JSON.parse(input);
+        const data: unknown = JSON.parse(input);
 
-        if(!Array.isArray(data)) {
-            return {ok: false, error: "Data is not an array"}
+        if (!Array.isArray(data)) {
+            return { ok: false, error: "Invalid Users shape (expected array)" };
         }
 
         const users: User[] = [];
 
-        for (const user of data) {
-            console.log(`User data: ${JSON.stringify(user)}`);
-            if(user.id === undefined) {
-                return {ok: false, error: "Missing field: id"};
-            } else if(typeof user.id !== "string") { 
-                return {ok: false, error: "Invalid type for id (expected string)"};
-            } else if (!user.id.startsWith('u')) {
-                return {ok: false, error: "Invalid id (must start with 'u')"};
-            };
+        for (const item of data) {
+            const validation = validateUser(item);
 
-            if(user.email === undefined) {
-                return {ok: false, error: "Missing field: email"};
-            } else if (typeof user.email !== "string") { 
-                return {ok: false, error: "Invalid type for email (expected string)"};
-            } else if (!user.email.includes('@')) {
-                return {ok: false, error: "Invalid email (doesn't contains @)"};
+            if (!validation.ok) {
+                return { ok: false, error: validation.error };
             }
 
-            if(user.role === undefined) {
-                return {ok: false, error: "Missing field: role"};
-            } else if (!validRoles.includes(user.role)) {
-                return {ok: false, error: "Invalid role (expected intern|mentor|admin)"};
-            }
-
-            const newUser: User = {
-                id: user.id,
-                email: user.email,
-                role: user.role
-            };
-            users.push(newUser);
+            users.push(validation.value);
         }
 
-        return {ok: true, value: users};
-    } catch(e) {
-        return {ok: false, error: "Invalid JSON"}
+        return { ok: true, value: users };
+    } catch (e) {
+        return { ok: false, error: "Invalid JSON" };
     }
 }
 
